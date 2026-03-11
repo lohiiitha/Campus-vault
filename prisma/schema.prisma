@@ -1,0 +1,257 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  SERVICE_PROVIDER
+  ADMIN
+}
+
+enum Condition {
+  NEW
+  LIKE_NEW
+  USED
+}
+
+enum ListingStatus {
+  PENDING
+  ACTIVE
+  RENTED
+  SOLD
+  REMOVED
+}
+
+enum RentalStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+}
+
+enum PurchaseStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+  OFFLINE
+}
+
+enum ReportReason {
+  SCAM
+  FAKE_ITEM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  OTHER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  phone         String?
+  department    String?
+  year          Int?
+  profilePhoto  String?
+  role          Role      @default(BUYER)
+  isVerified    Boolean   @default(false)
+  isBanned      Boolean   @default(false)
+  warningCount  Int       @default(0)
+  verifyToken   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  listings      Listing[]
+  rentalsAsRenter Rental[] @relation("RenterRentals")
+  rentalsAsOwner  Rental[] @relation("OwnerRentals")
+  ratingsGiven    Rating[] @relation("RaterRatings")
+  ratingsReceived Rating[] @relation("RateeRatings")
+  messagesSent    Message[] @relation("SentMessages")
+  reportsBy       Report[]  @relation("ReporterReports")
+  reportsAgainst  Report[]  @relation("ReportedReports")
+  services        Service[]
+  purchasesAsBuyer  Purchase[] @relation("BuyerPurchases")
+  purchasesAsSeller Purchase[] @relation("SellerPurchases")
+  notifications     Notification[]
+  wishlist          Wishlist[]
+
+  @@map("users")
+}
+
+model Listing {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  price       Float
+  condition   Condition
+  category    String
+  images      String[]
+  isRentable  Boolean       @default(false)
+  rentalPrice Float?
+  deposit     Float?
+  isUrgent    Boolean       @default(false)
+  isNegotiable Boolean      @default(false)
+  status      ListingStatus @default(PENDING)
+  removalReason String?
+  views       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id])
+  rentals     Rental[]
+  ratings     Rating[]
+  reports     Report[]
+  purchases   Purchase[]
+  wishlist    Wishlist[]
+
+  @@map("listings")
+}
+
+model Rental {
+  id          String       @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  totalPrice  Float
+  deposit     Float?
+  status      RentalStatus @default(ACTIVE)
+  returnedAt  DateTime?
+  createdAt   DateTime     @default(now())
+
+  listingId   String
+  listing     Listing @relation(fields: [listingId], references: [id])
+  renterId    String
+  renter      User    @relation("RenterRentals", fields: [renterId], references: [id])
+  ownerId     String
+  owner       User    @relation("OwnerRentals", fields: [ownerId], references: [id])
+
+  @@map("rentals")
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  score     Int
+  review    String?
+  createdAt DateTime @default(now())
+
+  raterId   String
+  rater     User    @relation("RaterRatings", fields: [raterId], references: [id])
+  rateeId   String
+  ratee     User    @relation("RateeRatings", fields: [rateeId], references: [id])
+  listingId String?
+  listing   Listing? @relation(fields: [listingId], references: [id])
+
+  @@map("ratings")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  senderId  String
+  sender    User   @relation("SentMessages", fields: [senderId], references: [id])
+  roomId    String
+  room      ChatRoom @relation(fields: [roomId], references: [id])
+
+  @@map("messages")
+}
+
+model ChatRoom {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  messages  Message[]
+  participants String[]
+
+  @@map("chat_rooms")
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reason      ReportReason
+  description String?
+  resolved    Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  reporterId  String
+  reporter    User    @relation("ReporterReports", fields: [reporterId], references: [id])
+  reportedId  String
+  reported    User    @relation("ReportedReports", fields: [reportedId], references: [id])
+  listingId   String?
+  listing     Listing? @relation(fields: [listingId], references: [id])
+
+  @@map("reports")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  hourlyPrice Float
+  category    String
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  providerId  String
+  provider    User   @relation(fields: [providerId], references: [id])
+
+  @@map("services")
+}
+
+model Purchase {
+  id        String         @id @default(cuid())
+  price     Float
+  status    PurchaseStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Offline sale fields (only populated for OFFLINE purchases)
+  offlineBuyerName  String?
+  offlineBuyerPhone String?
+  soldDate          DateTime?
+  notes             String?
+
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+  buyerId   String
+  buyer     User    @relation("BuyerPurchases", fields: [buyerId], references: [id])
+  sellerId  String
+  seller    User    @relation("SellerPurchases", fields: [sellerId], references: [id])
+
+  @@map("purchases")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+
+  @@unique([userId, listingId])
+  @@map("wishlists")
+}
