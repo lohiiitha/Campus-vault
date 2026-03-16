@@ -3,7 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
-export const authOptions: AuthOptions = {
+const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -19,7 +19,11 @@ export const authOptions: AuthOptions = {
         })
 
         if (!user || !user.password) return null
-        if (user.isBanned) throw new Error('Your account has been suspended due to guideline violations. Please contact support.')
+
+        if (user.isBanned)
+          throw new Error(
+            'Your account has been suspended due to guideline violations. Please contact support.'
+          )
 
         const isValid = await bcrypt.compare(credentials.password, user.password)
         if (!isValid) return null
@@ -35,6 +39,7 @@ export const authOptions: AuthOptions = {
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -45,17 +50,25 @@ export const authOptions: AuthOptions = {
       }
       return token
     },
-    // Always re-fetch from DB so role switches reflect immediately without re-login
+
     async session({ session, token }) {
       if (token.email) {
         try {
           const freshUser = await prisma.user.findUnique({
             where: { email: token.email as string },
             select: {
-              id: true, name: true, role: true, isVerified: true,
-              isBanned: true, profilePhoto: true, department: true, year: true, phone: true,
+              id: true,
+              name: true,
+              role: true,
+              isVerified: true,
+              isBanned: true,
+              profilePhoto: true,
+              department: true,
+              year: true,
+              phone: true,
             },
           })
+
           if (freshUser) {
             session.user = {
               email: token.email as string,
@@ -66,16 +79,20 @@ export const authOptions: AuthOptions = {
           }
         } catch {}
       }
+
       return session
     },
   },
+
   pages: {
     signIn: '/login',
     error: '/login',
   },
+
   session: { strategy: 'jwt' },
   secret: process.env.NEXTAUTH_SECRET,
 }
 
 const handler = NextAuth(authOptions)
+
 export { handler as GET, handler as POST }
