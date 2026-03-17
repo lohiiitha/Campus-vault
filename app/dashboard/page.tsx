@@ -75,7 +75,7 @@ export default function DashboardPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   const user = session?.user
-  const role = user?.role || 'BUYER'
+  const role = (user as any)?.role || 'BUYER'
   const theme = ROLE_THEME[role as keyof typeof ROLE_THEME] || ROLE_THEME.BUYER
   const firstName = user?.name?.split(' ')[0] ?? 'Student'
 
