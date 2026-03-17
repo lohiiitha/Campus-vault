@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import React from "react"
 
 const ROLES = [
   { value: 'BUYER',            emoji: '🛍️', label: 'Buyer',           desc: 'Browse and buy items from campus sellers' },
@@ -16,7 +17,7 @@ export default function ProfilePage() {
   const { data: session, update } = useSession()
   const router = useRouter()
   const [saving, setSaving] = useState(false)
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState<any>(null)
   const [form, setForm] = useState({ name: '', phone: '', department: '', year: 1, role: 'BUYER' })
 
   // Load fresh data from DB
@@ -31,7 +32,7 @@ export default function ProfilePage() {
       })
   }, [])
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
@@ -52,9 +53,9 @@ export default function ProfilePage() {
     }
   }
 
-  const user = session?.user
+  const user = session?.user as any
   const currentRole = form.role
-  const accentColor = ROLE_COLOR[currentRole] || '#f97316'
+  const accentColor = ROLE_COLOR[form.role as keyof typeof ROLE_COLOR] || '#f97316'
 
   return (
     <div style={{ padding: '28px', maxWidth: 600 }}>
@@ -121,7 +122,7 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {ROLES.map(r => {
               const isActive = form.role === r.value
-              const rc = ROLE_COLOR[r.value]
+              const rc = ROLE_COLOR[r.value as keyof typeof ROLE_COLOR]
               return (
                 <label key={r.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 11, cursor: 'pointer', background: isActive ? `${rc}12` : 'transparent', border: `1px solid ${isActive ? rc + '44' : '#ede8e2'}`, transition: 'all 0.15s ease' }}>
                   <input type="radio" name="role" value={r.value} checked={isActive} onChange={() => setForm({ ...form, role: r.value })} style={{ accentColor: rc, marginTop: 2, flexShrink: 0 }} />
